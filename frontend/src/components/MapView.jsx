@@ -1,42 +1,73 @@
-import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import { useWellsStore } from "../state/wells";
-import pumpIcon from "../assets/pump_icon.png";
-import obsIcon from "../assets/obs_icon.png";
 
-const PumpIcon = L.icon({ iconUrl: pumpIcon, iconSize: [32, 32] });
-const ObsIcon = L.icon({ iconUrl: obsIcon, iconSize: [28, 28] });
+// Custom icons
+const pumpingIcon = new L.Icon({
+  iconUrl: "/icons/pumpwell.png",
+  iconSize: [32, 32],
+  iconAnchor: [16, 32]
+});
+
+const observationIcon = new L.Icon({
+  iconUrl: "/icons/obswell.png",
+  iconSize: [28, 28],
+  iconAnchor: [14, 28]
+});
+
+// This now reads global mode from Zustand (NOT props)
+function MapClickHandler() {
+  const mode = useWellsStore(s => s.mode);
+  const addWell = useWellsStore(s => s.addWell);
+
+  useMapEvents({
+    click(e) {
+      if (!mode) return;
+
+      const { lat, lng } = e.latlng;
+      addWell(mode, lat, lng);
+    }
+  });
+
+  return null;
+}
 
 export default function MapView() {
-    const addWell = useWellsStore(state => state.addWell);
-    const wells = useWellsStore(state => state.wells);
+  const wells = useWellsStore(s => s.wells);
 
-    function MapClickHandler() {
-        useMapEvents({
-            click(e) {
-                const { lat, lng } = e.latlng;
-                const type = window.prompt("Enter well type (pumping/observation)");
-                if (type === "pumping" || type === "observation") {
-                    addWell(type, lat, lng);
-                }
-            }
-        });
-        return null;
-    }
+  return (
+    <div style={{ height: "100%", width: "100%" }}>
+      <MapContainer
+        center={[38.30, -85.95]}
+        zoom={12}
+        style={{ height: "100%", width: "100%" }}
+      >
+        <TileLayer
+          attribution='Map data © OpenStreetMap contributors'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
 
-    return (
-        <MapContainer center={[38.2, -85.9]} zoom={12} style={{ height: "100vh" }}>
-            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+        {/* Click handler listens for map clicks */}
+        <MapClickHandler />
 
-            <MapClickHandler />
-
-            {Object.values(wells).map(well => (
-                <Marker
-                    key={well.id}
-                    position={[well.lat, well.lng]}
-                    icon={well.type === "pumping" ? PumpIcon : ObsIcon}
-                />
-            ))}
-        </MapContainer>
-    );
+        {/* Render wells */}
+        {Object.values(wells).map(well => (
+          <Marker
+            key={well.id}
+            position={[well.lat, well.lng]}
+            icon={well.type === "pumping" ? pumpingIcon : observationIcon}
+          >
+            <Popup>
+              <strong>
+                {well.type === "pumping" ? "Pumping Well" : "Observation Well"}
+              </strong>
+              <br />
+              Lat: {well.lat.toFixed(5)} <br />
+              Lng: {well.lng.toFixed(5)}
+            </Popup>
+          </Marker>
+        ))}
+      </MapContainer>
+    </div>
+  );
 }
