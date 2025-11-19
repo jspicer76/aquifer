@@ -184,3 +184,5 @@ export const useBoundaryStore = create((set, get) => ({
       editMode: false
     }))
 }));
+
+export const useBoundariesStore = useBoundaryStore;

@@ -1,0 +1,111 @@
+{
+  "project": {
+    "name": "Sturgis Test Case",
+    "location": "Sturgis, Kentucky",
+    "datum_ft": 100.0
+  },
+  "pumping_test": {
+    "Q_gpm": 200,
+    "time_min": [1, 5, 10, 20, 40, 60, 120],
+    "drawdown_pumping_well_ft": [1.5, 4.0, 4.2, 4.4, 4.5, 4.6, 4.6],
+    "drawdown_observation_well_ft": [0.1, 0.2, 0.3, 0.4, 0.4, 0.4, 0.4],
+    "pumping_level_ft": 81.0,
+    "discharge_elev_ft": 100.0
+  },
+  "recovery_test": {
+    "recovery_time_min": [1, 2, 5, 10, 20, 40, 80],
+    "recovery_drawdown_ft": [0.38, 0.3, 0.2, 0.12, 0.07, 0.03, 0.01]
+  },
+  "aquifer": {
+    "observation_well_distance_ft": 150,
+    "b_ft": 115,
+    "water_table_depth_ft": 15,
+    "water_table_elev_ft": 85,
+    "ground_elev_ft": 100,
+    "well_depth_ft": 130,
+    "D10_mm": 0.25,
+    "D50_mm": 0.65
+  },
+  "recharge": {
+    "annual_precip_in": 48,
+    "infiltration_fraction": 0.22
+  },
+  "demand": {
+    "population": 2000,
+    "gpcd_avg": 95,
+    "peaking_max_day": 1.4,
+    "peaking_max_hour": 2.3,
+    "loss_fraction": 0.12,
+    "min_storage_hours": 20
+  },
+  "operation": {
+    "hours_per_day": 16,
+    "electric_rate": 0.11
+  },
+  "well_design": {
+    "total_depth_ft": 130,
+    "screen_length_override_ft": 90,
+    "diameter_override_in": 12,
+    "gravel_pack_thickness_in": 4
+  },
+  "scenario_wells": [
+    {
+      "id": "PW-1",
+      "type": "pumping",
+      "lat": 37.5469,
+      "lng": -87.9839,
+      "screen_top_ft": 15,
+      "screen_bottom_ft": 115
+    },
+    {
+      "id": "OW-1",
+      "type": "observation",
+      "lat": 37.5469,
+      "lng": -87.98442
+    }
+  ],
+  "wells": [
+    {
+      "Q": 0.4456020194683522,
+      "x": 0.0,
+      "y": 0.0,
+      "start": 0.0,
+      "stop": null
+    }
+  ],
+  "boundaries": {
+    "constant_head": [
+      {
+        "name": "Tradewater River",
+        "head": 85,
+        "points": [
+          [37.549647, -87.984593],
+          [37.544153, -87.984593]
+        ]
+      }
+    ],
+    "no_flow": [
+      {
+        "name": "Eastern Bedrock",
+        "points": [
+          [37.549647, -87.981821],
+          [37.544153, -87.981821]
+        ]
+      },
+      {
+        "name": "Northern Extent",
+        "points": [
+          [37.549647, -87.984593],
+          [37.549647, -87.981821]
+        ]
+      },
+      {
+        "name": "Southern Extent",
+        "points": [
+          [37.544153, -87.984593],
+          [37.544153, -87.981821]
+        ]
+      }
+    ]
+  }
+}

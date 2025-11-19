@@ -1,9 +1,10 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useUIStore } from "../state/ui";
-import PumpingWellEditor from "./drawers/PumpingWellEditor";
-import ObservationWellEditor from "./drawers/ObservationWellEditor";
-import AquiferSettings from "./drawers/AquiferSettings";
-import DemandSettings from "./drawers/DemandSettings";
+import PumpingWellEditor from "./drawer/PumpingWellEditor";
+import ObservationWellEditor from "./drawer/ObservationWellEditor";
+import AquiferSettings from "./drawer/AquiferSettings";
+import DemandSettings from "./drawer/DemandSettings";
+import ResultsDrawer from "./drawer/ResultsDrawer";
 
 export default function RightDrawer() {
     const drawerOpen = useUIStore(s => s.drawerOpen);
@@ -53,6 +54,7 @@ export default function RightDrawer() {
                         {drawerType === "observation" && <ObservationWellEditor />}
                         {drawerType === "aquifer" && <AquiferSettings />}
                         {drawerType === "demand" && <DemandSettings />}
+                        {drawerType === "results" && <ResultsDrawer />}
                     </motion.div>
                 </>
             )}

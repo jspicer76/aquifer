@@ -1,105 +1,114 @@
-import React from "react";
 import { useWellsStore } from "../state/wells";
 import { useUIStore } from "../state/ui";
 
-export default function Toolbar() {
-  const setMode = useWellsStore(s => s.setMode);
-  const openDrawer = useUIStore(s => s.openDrawer);
-  const runModel = useModelRunner(s => s.runModel);
+const buttonStyle = {
+  padding: "8px 12px",
+  borderRadius: 4,
+  border: "1px solid #d0d7de",
+  background: "#fff",
+  cursor: "pointer"
+};
 
-  return (
-    <div style={{ display: "flex", gap: "10px" }}>
-      <button onClick={() => setMode("pumping")}>Add Pumping Well</button>
-      <button onClick={() => setMode("observation")}>Add Observation Well</button>
-      <button onClick={() => openDrawer("aquifer")}>Aquifer Settings</button>
-      <button onClick={() => openDrawer("demand")}>System Demand</button>
-      <button onClick={() => setMode(null)}>Cancel</button>
-      <button onClick={() => useUIStore.getState().openDrawer("aquifer")}>
-        Aquifer Settings
-      </button>
-
-      <button onClick={() => useUIStore.getState().openDrawer("demand")}>
-        Demand Settings
-      </button>
-
-      <button onClick={() => runModel()}>
-        Run Aquifer Model
-      </button>
-    </div>
-  );
-}
-
-
-const activeButtonStyle = {
-  backgroundColor: "#1976d2",
-  color: "#fff"
+const activeButton = {
+  ...buttonStyle,
+  background: "#0d6efd",
+  color: "#fff",
+  borderColor: "#0d6efd"
 };
 
 export default function Toolbar() {
-  const {
-    addPumpingWell,
-    addObservationWell,
-    runModel,
-    mode,
-    isRunning,
-    wellsCount,
-    lastRunSummary,
-    error
-  } = useWellsStore((state) => ({
-    addPumpingWell: state.addPumpingWell,
-    addObservationWell: state.addObservationWell,
-    runModel: state.runModel,
-    mode: state.mode,
-    isRunning: state.isRunning,
-    wellsCount: state.wells.length,
-    lastRunSummary: state.lastRunSummary,
-    error: state.error
-  }));
+  const addPumpingWell = useWellsStore(s => s.addPumpingWell);
+  const addObservationWell = useWellsStore(s => s.addObservationWell);
+  const clearMode = useWellsStore(s => s.clearMode);
+  const runModel = useWellsStore(s => s.runModel);
+  const mode = useWellsStore(s => s.mode);
+  const isRunning = useWellsStore(s => s.isRunning);
+  const wellsCount = useWellsStore(s => s.wells.length);
+  const lastRunSummary = useWellsStore(s => s.lastRunSummary);
+  const error = useWellsStore(s => s.error);
+  const openDrawer = useUIStore(s => s.openDrawer);
 
-  const modelDisabled = isRunning || wellsCount === 0;
-  const activeLabel = mode
-    ? `Placing ${mode === "pumping" ? "Pumping" : "Observation"} Well`
-    : "Select a tool";
+  const disableRun = isRunning || wellsCount === 0;
+  const placementLabel = mode
+    ? `Placing ${mode === "pumping" ? "pumping" : "observation"} well`
+    : "Select a tool to begin";
 
   return (
-    <div className="toolbar">
-      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 8,
+        padding: "10px 14px",
+        background: "#fff",
+        borderRadius: 10,
+        boxShadow: "0 4px 15px rgba(15,23,42,0.12)"
+      }}
+    >
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
         <button
           type="button"
           onClick={addPumpingWell}
-          style={mode === "pumping" ? activeButtonStyle : undefined}
+          style={mode === "pumping" ? activeButton : buttonStyle}
         >
           Add Pumping Well
         </button>
         <button
           type="button"
           onClick={addObservationWell}
-          style={mode === "observation" ? activeButtonStyle : undefined}
+          style={mode === "observation" ? activeButton : buttonStyle}
         >
           Add Observation Well
+        </button>
+        <button type="button" onClick={clearMode} style={buttonStyle}>
+          Cancel Placement
+        </button>
+        <button
+          type="button"
+          onClick={() => openDrawer("aquifer")}
+          style={buttonStyle}
+        >
+          Aquifer Settings
+        </button>
+        <button
+          type="button"
+          onClick={() => openDrawer("demand")}
+          style={buttonStyle}
+        >
+          System Demand
         </button>
         <button
           type="button"
           onClick={runModel}
-          disabled={modelDisabled}
+          disabled={disableRun}
+          style={{
+            ...buttonStyle,
+            background: disableRun ? "#f0f0f0" : "#198754",
+            color: disableRun ? "#777" : "#fff",
+            borderColor: disableRun ? "#d0d0d0" : "#198754",
+            cursor: disableRun ? "not-allowed" : "pointer"
+          }}
         >
-          {isRunning ? "Running model..." : "Run Aquifer Model"}
+          {isRunning ? "Running..." : "Run Aquifer Model"}
         </button>
       </div>
 
-      <div style={{ marginTop: "6px", fontSize: "0.85rem" }}>
-        <div>Active tool: {activeLabel}</div>
-        {modelDisabled && wellsCount === 0 && (
-          <div style={{ color: "#555" }}>Add at least one well to enable the model.</div>
+      <div style={{ fontSize: 13, color: "#0f172a" }}>
+        <div>{placementLabel}</div>
+        {disableRun && wellsCount === 0 && (
+          <div style={{ color: "#6c757d" }}>
+            Add at least one well to enable the simulation.
+          </div>
         )}
         {lastRunSummary && (
-          <div style={{ color: "#0b8043" }}>
-            Last run at {new Date(lastRunSummary.timestamp).toLocaleTimeString()} &middot; Aquifer type:{" "}
+          <div style={{ color: "#0d9488" }}>
+            Last run at{" "}
+            {new Date(lastRunSummary.timestamp).toLocaleTimeString()} – Aquifer{" "}
             {lastRunSummary.aquifer_type ?? "n/a"}
           </div>
         )}
         {error && (
-          <div style={{ color: "#b00020" }}>
+          <div style={{ color: "#b91c1c" }}>
             {error}
           </div>
         )}

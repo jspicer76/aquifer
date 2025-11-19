@@ -1,13 +1,20 @@
-import { MapContainer, TileLayer, Marker, Popup, Polyline, Polygon } from "react-leaflet";
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  Popup,
+  Polyline,
+  Polygon,
+  useMap
+} from "react-leaflet";
 import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet-draw";
+import "leaflet-draw/dist/leaflet.draw.css";
 import { useWellsStore } from "../state/wells";
 import { useBoundaryStore } from "../state/boundaries";
 import BoundaryMetadataModal from "./BoundaryMetadataModal";
 
-
-// Icons
 const pumpingIcon = new L.Icon({
   iconUrl: "/icons/pumpwell.png",
   iconSize: [32, 32],
@@ -24,9 +31,7 @@ export default function MapView() {
   const wells = useWellsStore(s => Object.values(s.wells));
   const boundaryStore = useBoundaryStore();
 
-  const mapRef = useRef(null);
   const drawnItems = useRef(null);
-
   const [metadataMode, setMetadataMode] = useState(null);
   const [pendingGeometry, setPendingGeometry] = useState([]);
   const [pendingBoundary, setPendingBoundary] = useState(null);
@@ -38,162 +43,27 @@ export default function MapView() {
     ghb: { color: "#f77f00", weight: 3, dashArray: "6,6" }
   };
 
-  // ---------------------------------------------------------
-  // INITIALIZE MAP + DRAW HANDLERS
-  // ---------------------------------------------------------
-  useEffect(() => {
-    if (!mapRef.current) return;
-    const map = mapRef.current;
-
-    drawnItems.current = new L.FeatureGroup();
-    map.addLayer(drawnItems.current);
-
-    let drawControl = null;
-
-    // Subscribe to boundary store draw mode
-    const unsub = useBoundaryStore.subscribe((state) => {
-      if (drawControl) map.removeControl(drawControl);
-
-      if (state.editMode) {
-        drawControl = new L.Control.Draw({
-          draw: false,
-          edit: { featureGroup: drawnItems.current }
-        });
-        map.addControl(drawControl);
-        return;
-      }
-
-      if (!state.drawMode) return;
-
-      let mode = state.drawMode;
-      let drawOptions = {
-        draw: {
-          polyline: false,
-          polygon: false,
-          rectangle: false,
-          marker: false,
-          circle: false,
-          circlemarker: false
-        },
-        edit: false
-      };
-
-      if (mode === "chb") drawOptions.draw.polyline = { shapeOptions: styles.chb };
-      if (mode === "noflow") drawOptions.draw.polyline = { shapeOptions: styles.noflow };
-      if (mode === "ghb") drawOptions.draw.polyline = { shapeOptions: styles.ghb };
-      if (mode === "recharge") drawOptions.draw.polygon = { shapeOptions: styles.recharge };
-
-      drawControl = new L.Control.Draw(drawOptions);
-      map.addControl(drawControl);
-    });
-
-    // Handle DRAW COMPLETE
-    map.on(L.Draw.Event.CREATED, function (e) {
-      const layer = e.layer;
-      drawnItems.current.addLayer(layer);
-
-      const mode = useBoundaryStore.getState().drawMode;
-      if (!mode) return;
-
-      // Convert leaflet geometry
-      let coords = [];
-      if (layer.getLatLngs) {
-        const ll = layer.getLatLngs();
-        if (Array.isArray(ll[0])) coords = ll[0].map((pt) => [pt.lat, pt.lng]);
-        else coords = ll.map((pt) => [pt.lat, pt.lng]);
-      }
-
-      // Save geometry temporarily until metadata entered
-      setPendingGeometry(coords);
-      setPendingBoundary(null);
-      setMetadataMode(mode);
-
-      // Stop drawing
-      useBoundaryStore.getState().stopDraw();
-    });
-
-    // Handle EDIT COMPLETE
-    map.on("draw:edited", function (e) {
-      e.layers.eachLayer((layer) => {
-        const id = layer.options.boundaryId;
-        const type = layer.options.boundaryType;
-
-        if (!id || !type) return;
-
-        let ll = layer.getLatLngs();
-        let coords = Array.isArray(ll[0])
-          ? ll[0].map((pt) => [pt.lat, pt.lng])
-          : ll.map((pt) => [pt.lat, pt.lng]);
-
-        useBoundaryStore.getState().updateGeometry(type, id, coords);
-      });
-    });
-
-    return () => unsub();
-  }, []);
-
-  // ---------------------------------------------------------
-  // SUBMIT METADATA FROM MODAL
-  // ---------------------------------------------------------
-  function handleMetadataSubmit(meta) {
-    if (!metadataMode) return;
-
-    if (pendingBoundary) {
-      boundaryStore.updateMetadata(pendingBoundary.type, pendingBoundary.id, meta);
-    } else {
-      boundaryStore.addBoundary(metadataMode, pendingGeometry, meta);
-    }
-
-    setMetadataMode(null);
-    setPendingGeometry([]);
-    setPendingBoundary(null);
-  }
-
-  function handleDelete() {
-    if (pendingBoundary) {
-      boundaryStore.removeBoundary(pendingBoundary.type, pendingBoundary.id);
-    }
-    setMetadataMode(null);
-    setPendingBoundary(null);
-    setPendingGeometry([]);
-  }
-
-  function handleEditGeometry() {
-    if (pendingBoundary) {
-      boundaryStore.startEdit();
-    }
-    setMetadataMode(null);
-    setPendingBoundary(null);
-  }
-
-  function handleClose() {
-    setMetadataMode(null);
-    setPendingGeometry([]);
-    setPendingBoundary(null);
-  }
-
   const currentBoundary =
     pendingBoundary && boundaryStore[pendingBoundary.type]
       ? boundaryStore[pendingBoundary.type].find((b) => b.id === pendingBoundary.id)
       : null;
 
-  // ---------------------------------------------------------
-  // RENDER
-  // ---------------------------------------------------------
   return (
     <div style={{ width: "100%", height: "100%" }}>
-      <MapContainer
-        center={[38.3, -85.9]}
-        zoom={12}
-        style={{ width: "100%", height: "100%" }}
-        whenCreated={map => (mapRef.current = map)}
-      >
+      <MapContainer center={[38.3, -85.9]} zoom={12} style={{ width: "100%", height: "100%" }}>
         <TileLayer
-          attribution="© OpenStreetMap contributors"
+          attribution="Ac OpenStreetMap contributors"
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
-        {/* Wells */}
+        <MapInteractions
+          styles={styles}
+          drawnItems={drawnItems}
+          setMetadataMode={setMetadataMode}
+          setPendingGeometry={setPendingGeometry}
+          setPendingBoundary={setPendingBoundary}
+        />
+
         {wells.map((w) => (
           <Marker
             key={w.id}
@@ -209,7 +79,6 @@ export default function MapView() {
           </Marker>
         ))}
 
-        {/* CLICKABLE BOUNDARIES */}
         {boundaryStore.constantHead.map(b => (
           <Polyline
             key={b.id}
@@ -269,18 +138,159 @@ export default function MapView() {
             }}
           />
         ))}
-
       </MapContainer>
 
       <BoundaryMetadataModal
         open={metadataMode !== null}
         mode={metadataMode}
         selected={currentBoundary}
-        onClose={handleClose}
-        onSubmit={handleMetadataSubmit}
-        onDelete={pendingBoundary ? handleDelete : undefined}
-        onEditGeometry={pendingBoundary ? handleEditGeometry : undefined}
+        onClose={() => {
+          setMetadataMode(null);
+          setPendingGeometry([]);
+          setPendingBoundary(null);
+        }}
+        onSubmit={(meta) => {
+          if (!metadataMode) return;
+          if (pendingBoundary) {
+            boundaryStore.updateMetadata(pendingBoundary.type, pendingBoundary.id, meta);
+          } else {
+            boundaryStore.addBoundary(metadataMode, pendingGeometry, meta);
+          }
+          setMetadataMode(null);
+          setPendingGeometry([]);
+          setPendingBoundary(null);
+        }}
+        onDelete={
+          pendingBoundary
+            ? () => {
+                boundaryStore.removeBoundary(pendingBoundary.type, pendingBoundary.id);
+                setMetadataMode(null);
+                setPendingBoundary(null);
+                setPendingGeometry([]);
+              }
+            : undefined
+        }
+        onEditGeometry={
+          pendingBoundary
+            ? () => {
+                boundaryStore.startEdit();
+                setMetadataMode(null);
+                setPendingBoundary(null);
+              }
+            : undefined
+        }
       />
     </div>
   );
+}
+
+function MapInteractions({
+  styles,
+  drawnItems,
+  setMetadataMode,
+  setPendingGeometry,
+  setPendingBoundary
+}) {
+  const map = useMap();
+
+  useEffect(() => {
+    drawnItems.current = new L.FeatureGroup();
+    map.addLayer(drawnItems.current);
+
+    const handleMapClick = e => {
+      const placement = useWellsStore.getState().mode;
+      if (!placement) return;
+      useWellsStore.getState().addWell(placement, e.latlng.lat, e.latlng.lng);
+    };
+
+    map.on("click", handleMapClick);
+
+    let drawControl = null;
+    const unsub = useBoundaryStore.subscribe((state) => {
+      if (drawControl) {
+        map.removeControl(drawControl);
+        drawControl = null;
+      }
+
+      if (state.editMode) {
+        drawControl = new L.Control.Draw({
+          draw: false,
+          edit: { featureGroup: drawnItems.current }
+        });
+        map.addControl(drawControl);
+        return;
+      }
+
+      if (!state.drawMode) return;
+
+      const drawOptions = {
+        draw: {
+          polyline: false,
+          polygon: false,
+          rectangle: false,
+          marker: false,
+          circle: false,
+          circlemarker: false
+        },
+        edit: false
+      };
+
+      if (state.drawMode === "chb") drawOptions.draw.polyline = { shapeOptions: styles.chb };
+      if (state.drawMode === "noflow") drawOptions.draw.polyline = { shapeOptions: styles.noflow };
+      if (state.drawMode === "ghb") drawOptions.draw.polyline = { shapeOptions: styles.ghb };
+      if (state.drawMode === "recharge") drawOptions.draw.polygon = { shapeOptions: styles.recharge };
+
+      drawControl = new L.Control.Draw(drawOptions);
+      map.addControl(drawControl);
+    });
+
+    const handleCreated = e => {
+      const layer = e.layer;
+      drawnItems.current.addLayer(layer);
+
+      const mode = useBoundaryStore.getState().drawMode;
+      if (!mode) return;
+
+      let coords = [];
+      if (layer.getLatLngs) {
+        const ll = layer.getLatLngs();
+        if (Array.isArray(ll[0])) coords = ll[0].map(pt => [pt.lat, pt.lng]);
+        else coords = ll.map(pt => [pt.lat, pt.lng]);
+      }
+
+      setPendingGeometry(coords);
+      setPendingBoundary(null);
+      setMetadataMode(mode);
+      useBoundaryStore.getState().stopDraw();
+    };
+
+    const handleEdited = e => {
+      e.layers.eachLayer((layer) => {
+        const id = layer.options.boundaryId;
+        const type = layer.options.boundaryType;
+        if (!id || !type) return;
+
+        const ll = layer.getLatLngs();
+        const coords = Array.isArray(ll[0])
+          ? ll[0].map(pt => [pt.lat, pt.lng])
+          : ll.map(pt => [pt.lat, pt.lng]);
+
+        useBoundaryStore.getState().updateGeometry(type, id, coords);
+      });
+    };
+
+    map.on(L.Draw.Event.CREATED, handleCreated);
+    map.on("draw:edited", handleEdited);
+
+    return () => {
+      map.off("click", handleMapClick);
+      map.off(L.Draw.Event.CREATED, handleCreated);
+      map.off("draw:edited", handleEdited);
+      if (drawControl) map.removeControl(drawControl);
+      map.removeLayer(drawnItems.current);
+      unsub();
+    };
+  }, [map, styles, drawnItems, setMetadataMode, setPendingGeometry, setPendingBoundary]);
+
+  return null;
 }

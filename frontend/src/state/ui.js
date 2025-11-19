@@ -4,21 +4,21 @@ export const useUIStore = create(set => ({
   drawerOpen: false,
   drawerType: null,
   drawerWellId: null,
+  drawerPayload: null,
 
-
-  openDrawer("results", { results })
-
-  openDrawer: (type, wellId = null) =>
+  openDrawer: (type, payload = null) =>
     set({
       drawerOpen: true,
       drawerType: type,
-      drawerWellId: wellId
+      drawerWellId: payload?.wellId ?? null,
+      drawerPayload: payload
     }),
 
   closeDrawer: () =>
     set({
       drawerOpen: false,
       drawerType: null,
-      drawerWellId: null
+      drawerWellId: null,
+      drawerPayload: null
     })
 }));
