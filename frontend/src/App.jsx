@@ -2,6 +2,56 @@
 import Sidebar from "./components/Sidebar";
 import MapView from "./components/MapView";
 import Toolbar from "./components/Toolbar";
+import RightDrawer from "./components/RightDrawer";
+import DrawerHost from "./components/drawers/DrawerHost";
+import { useUIStore } from "../../state/ui";
+import PumpingWellEditor from "./PumpingWellEditor";
+import ObservationWellEditor from "./ObservationWellEditor";
+import AquiferSettings from "./AquiferSettings";
+import DemandSettings from "./DemandSettings";
+import ResultsDrawer from "./ResultsDrawer";
+
+export default function DrawerHost() {
+  const open = useUIStore(s => s.drawerOpen);
+  const type = useUIStore(s => s.drawerType);
+
+  if (!open) return null;
+
+  switch (type) {
+    case "pumping":
+      return <PumpingWellEditor />;
+    case "observation":
+      return <ObservationWellEditor />;
+    case "aquifer":
+      return <AquiferSettings />;
+    case "demand":
+      return <DemandSettings />;
+    case "results":
+      return <ResultsDrawer />;
+    default:
+      return null;
+  }
+}
+
+
+export default function App() {
+    return (
+        <div style={{ display: "flex", height: "100vh" }}>
+            <Sidebar />
+
+            <div style={{ flex: 1, position: "relative" }}>
+                <Toolbar />
+                <MapView />
+                <RightDrawer />   {/* <-- Add this */}
+            </div>
+        </div>
+    );
+}
+
+{drawer.type === "results" && (
+  <ResultsDrawerTabs results={drawer.payload.results} />
+)}
+
 
 export default function App() {
     return (
@@ -35,6 +85,7 @@ export default function App() {
 
                 {/* Map */}
                 <MapView />
+                <DrawerHost />
             </div>
         </div>
     );

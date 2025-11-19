@@ -1,7 +1,8 @@
+import base64
 import json
 import os
+import copy
 import numpy as np
-import matplotlib.pyplot as plt
 
 # -------------------------------
 # Analytical Methods
@@ -13,6 +14,7 @@ from .solver.methods.recovery import recovery_fit
 from .solver.methods.interference import multiwell_timeseries
 from .solver.methods.pump72 import simulate_72hr_test
 from .solver.designer.well_designer import design_well
+
 
 
 # -------------------------------
@@ -94,6 +96,7 @@ def classify_aquifer(T, S, Sy):
 # Dynamic Report Writer
 # -------------------------------
 from .report.make_dynamic_report import make_dynamic_report
+from .plots.boundary_map import plot_boundary_map, process_boundary_payload
 
 
 
@@ -121,16 +124,38 @@ def load_inputs():
     return json.loads(raw)
 
 
+def encode_png(path):
+    """Return a base64-encoded string for the requested PNG path, if present."""
+    if not os.path.exists(path):
+        return None
+
+    with open(path, "rb") as f:
+        return base64.b64encode(f.read()).decode("ascii")
+
+
 
 # ======================================================
 # MAIN PIPELINE
 # ======================================================
-def main():
+def main(custom_inputs=None, *, generate_report=True):
+    """
+    Execute the aquifer analysis workflow.
+
+    Args:
+        custom_inputs (dict | None): Optional payload to override the default
+            aquifer_input.json values.
+        generate_report (bool): When False, skips document/report generation
+            so the function can be used for API calls.
+    """
 
     # --------------------------------------------------
     # Load JSON Input
     # --------------------------------------------------
-    data = load_inputs()
+    if custom_inputs is not None:
+        data = copy.deepcopy(custom_inputs)
+        print("USING PROVIDED INPUT PAYLOAD")
+    else:
+        data = load_inputs()
 
     # Pumping Test Inputs
     Q_gpm = data["pumping_test"]["Q_gpm"]
@@ -138,8 +163,6 @@ def main():
 
     t = np.array(data["pumping_test"]["time_min"])
     s_obs = np.array(data["pumping_test"]["drawdown_observation_well_ft"])
-    s_pw = np.array(data["pumping_test"].get("drawdown_pumping_well_ft", []))
-
     r_obs = data["aquifer"]["observation_well_distance_ft"]
     b = data["aquifer"]["b_ft"]
 
@@ -350,6 +373,26 @@ def main():
 
     fd = run_fd2d_model(Q=Q_cfs, T=T_cal, Sy=Sy_cal)
 
+    processed_boundaries = None
+    boundary_map_path = None
+    if data.get("boundaries"):
+        processed_boundaries = process_boundary_payload(
+            data["boundaries"],
+            nx=fd["nx"],
+            ny=fd["ny"],
+            dx=fd["dx"],
+            dy=fd["dy"]
+        )
+        if processed_boundaries:
+            boundary_map_path = os.path.join("report", "boundary_map.png")
+            plot_boundary_map(
+                fd["h"],
+                fd["dx"],
+                fd["dy"],
+                processed_boundaries,
+                boundary_map_path
+            )
+
     pump_loc = fd["pump_location"]
     cells_offset = max(1, int(round(r_obs / fd["dx"])))
     obs_col = min(fd["nx"] - 1, pump_loc[0] + cells_offset)
@@ -375,11 +418,14 @@ def main():
     # --------------------------------------------------
     # KDOW SWA-2 FORM
     # --------------------------------------------------
-    fill_swa2_form(
-        results={"T": T_cal, "Sy": Sy_cal, "S": theis["S"], "yield_gpm": Q_gpm},
-        inputs=data
-    )
-    print("KDOW SWA-2 form generated.")
+    if generate_report:
+        fill_swa2_form(
+            results={"T": T_cal, "Sy": Sy_cal, "S": theis["S"], "yield_gpm": Q_gpm},
+            inputs=data
+        )
+        print("KDOW SWA-2 form generated.")
+    else:
+        print("Skipping KDOW SWA-2 form generation (generate_report=False).")
 
     # --------------------------------------------------
     # Aquifer Classification
@@ -401,7 +447,10 @@ def main():
     # --------------------------------------------------
     # DYNAMIC WORD REPORT
     # --------------------------------------------------
-    print("\n=== GENERATING DYNAMIC REPORT ===")
+    if generate_report:
+        print("\n=== GENERATING DYNAMIC REPORT ===")
+    else:
+        print("\n=== SKIPPING DYNAMIC REPORT (generate_report=False) ===")
 
     results = {
         "inputs": data,
@@ -423,11 +472,29 @@ def main():
             "pump_energy": pump_energy,
             "well_cost": well_cost,
             "diagram": diagram_path
-        }
+        },
+        "plots": {}
     }
 
-    make_dynamic_report(results)
-    print("\nCOMPLETE - Dynamic report generated: report/aquifer_dynamic_report.docx\n")
+    results["aquifer_class"] = aquifer_class
+    if data.get("scenario_wells"):
+        results["scenario_wells"] = data["scenario_wells"]
+
+    if boundary_map_path:
+        boundary_map_image = encode_png(boundary_map_path)
+        if boundary_map_image:
+            results["plots"]["boundary_map"] = boundary_map_image
+
+    if processed_boundaries:
+        results["boundaries"] = processed_boundaries
+
+    if generate_report:
+        make_dynamic_report(results)
+        print("\nCOMPLETE - Dynamic report generated: report/aquifer_dynamic_report.docx\n")
+    else:
+        print("\nMODEL RUN COMPLETE - report generation was skipped.\n")
+
+    return results
 
 
 

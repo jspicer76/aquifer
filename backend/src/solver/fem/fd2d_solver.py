@@ -130,3 +130,41 @@ def run_fd2d_model(
         "nx": nx,
         "ny": ny
     }
+    # backend/src/solver/fem/fd2d_solver.py
+
+    from .boundary_assembly import BoundaryAssembler
+    from backend.src.models.boundaries import BoundaryProcessor
+
+    def run_fd2d_model(Q, T, Sy, boundaries=None, **kwargs):
+
+        # --- existing FD assembly ---
+        A, b = assemble_matrix(T, Sy, Q, ...)
+
+        assembler = BoundaryAssembler(A, b, dx, dy)
+        assembler.set_grid_shape(nx, ny)
+
+        # ---------------------------------------
+        # Apply boundaries if provided
+        # ---------------------------------------
+        if boundaries:
+
+            # Convert lat/lng → grid indices
+            bp = BoundaryProcessor(dx, dy, origin_latlng, geo_to_ft)
+            bc = bp.process(boundaries)
+
+            for b in bc["constant_head"]:
+                assembler.apply_constant_head(b["nodes"], b["head"])
+
+            for b in bc["no_flow"]:
+                assembler.apply_no_flow(b["nodes"])
+
+            for b in bc["recharge_zones"]:
+                assembler.apply_recharge(b["polygon"], b["rate"])
+
+            for b in bc["general_head"]:
+                assembler.apply_ghb(b["nodes"], b["head"], b["cond"])
+
+        # Solve system
+        h = np.linalg.solve(assembler.A, assembler.b)
+
+        return h.reshape((ny, nx))
